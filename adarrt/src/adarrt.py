@@ -107,9 +107,21 @@ class AdaRRT():
         for k in range(self.max_iter):
             # FILL in your code here
 
+            sample = self._get_random_sample()
+            neighbor = self._get_nearest_neighbor(sample)
+
+            new_node = self._extend_sample(sample, neighbor)
             if new_node and self._check_for_completion(new_node):
                 # FILL in your code here
+                
+                # RRT is complete
+                
+                # Add goal node to RRT
+                self.goal.parent = new_node
+                new_node.children.append(self.goal)
 
+                # Build path from start to goal
+                path = self._trace_path_from_start(self.goal)
                 return path
 
         print("Failed to find path from {0} to {1} after {2} iterations!".format(
@@ -123,6 +135,7 @@ class AdaRRT():
             space.
         """
         # FILL in your code here
+        return np.random.uniform(self.joint_lower_limits, self.joint_upper_limits)
 
     def _get_nearest_neighbor(self, sample):
         """
@@ -133,6 +146,16 @@ class AdaRRT():
         :returns: A Node object for the closest neighbor.
         """
         # FILL in your code here
+        nearest_neighbor = None
+        min_dist = float('inf')
+
+        for neighbor in self.start:
+            dist = np.linalg.norm(neighbor.state - sample)
+            if dist < min_dist:
+                min_dist = dist
+                nearest_neighbor = neighbor
+        
+        return nearest_neighbor
 
     def _extend_sample(self, sample, neighbor):
         """
@@ -147,6 +170,23 @@ class AdaRRT():
         """
         # FILL in your code here
 
+        direction = sample - neighbor.state
+        length = np.linalg.norm(direction)
+
+        if length == 0:
+            return None
+    
+        # Normalize direction
+        direction = direction / length
+
+        new_state = neighbor.state + direction * self.step_size
+
+        if self._check_for_collision(new_state):
+            return None
+
+        new_node = neighbor.add_child(new_state)
+        return new_node
+
     def _check_for_completion(self, node):
         """
         Check whether node is within self.goal_precision distance of the goal.
@@ -155,6 +195,8 @@ class AdaRRT():
         :returns: Boolean indicating node is close enough for completion.
         """
         # FILL in your code here
+        dist = np.linalg.norm(node.state - self.goal.state)
+        return dist <= self.goal_precision
 
     def _trace_path_from_start(self, node=None):
         """
@@ -166,6 +208,16 @@ class AdaRRT():
             ending at the goal state.
         """
         # FILL in your code here
+
+        path = []
+        current_node = node if node is not None else self.goal
+
+        while current_node is not None:
+            path.append(current_node.state)
+            current_node = current_node.parent
+        
+        path.reverse()
+        return path
 
     def _check_for_collision(self, sample):
         """
